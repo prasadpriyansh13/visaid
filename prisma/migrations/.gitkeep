@@ -1,0 +1,4 @@
+# Prisma Migrations Directory
+# Migration files will be generated here when you run:
+# npx prisma migrate dev --name migration_name
+

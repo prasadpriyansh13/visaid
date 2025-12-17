@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "../../../src/lib/prisma";
 
+/**
+ * POST /api/users
+ * 
+ * Saves user form data (name, email, phone) to PostgreSQL database via Prisma.
+ * 
+ * Production Database Flow:
+ * 1. User submits form on landing page
+ * 2. Frontend sends POST request to this API route
+ * 3. API validates input and saves to PostgreSQL (Neon) via Prisma
+ * 4. Returns success response to frontend
+ * 
+ * Database: Neon PostgreSQL (cloud-hosted)
+ * ORM: Prisma Client
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -13,32 +28,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Log user data to server console
-    // In production, you would save this to a database (e.g., PostgreSQL with Prisma)
-    console.log("=".repeat(50));
-    console.log("User data received:");
-    console.log("  Name:", name);
-    console.log("  Email:", email);
-    console.log("  Phone:", phone);
-    console.log("  Timestamp:", new Date().toISOString());
-    console.log("=".repeat(50));
-    console.log("\n💡 To view this data in production:");
-    console.log("   1. Set up Prisma with PostgreSQL");
-    console.log("   2. Run: npx prisma studio");
-    console.log("   3. Or query the database directly\n");
+    // Validate email format (basic validation)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 }
+      );
+    }
 
-    // In a real application, you would save this to a database here
-    // Example with Prisma:
-    // const user = await prisma.user.create({
-    //   data: { name, email, phone }
-    // });
+    // Save user data to PostgreSQL database via Prisma
+    // This creates a new record in the 'users' table
+    const user = await prisma.user.create({
+      data: {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+      },
+    });
+
+    // Log successful save (for monitoring/debugging)
+    console.log("User data saved to database:", {
+      id: user.id,
+      email: user.email,
+      timestamp: user.createdAt,
+    });
 
     return NextResponse.json(
-      { message: "User data saved successfully" },
-      { status: 200 }
+      {
+        message: "User data saved successfully",
+        userId: user.id,
+      },
+      { status: 201 } // 201 Created - appropriate for resource creation
     );
   } catch (error) {
-    console.error("Error processing user data:", error);
+    console.error("Error saving user data to database:", error);
+
+    // Handle Prisma-specific errors
+    if (error instanceof Error) {
+      // Check for unique constraint violations (duplicate email)
+      if (error.message.includes("Unique constraint") || error.message.includes("P2002")) {
+        return NextResponse.json(
+          { error: "Email already exists" },
+          { status: 409 } // 409 Conflict
+        );
+      }
+
+      // Check for database connection errors
+      if (error.message.includes("P1001") || error.message.includes("connect")) {
+        return NextResponse.json(
+          { error: "Database connection error. Please try again later." },
+          { status: 503 } // 503 Service Unavailable
+        );
+      }
+    }
+
+    // Generic error response
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

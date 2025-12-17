@@ -1,0 +1,26 @@
+// Prisma Schema for VisionAid
+// This schema defines the database structure for production use with Neon PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Connection string is provided via DATABASE_URL environment variable
+  // Format: postgresql://user:password@host:port/database?sslmode=require
+  // For Neon: postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require
+  url      = env("DATABASE_URL")
+}
+
+// User model for storing form submission data
+// This model represents users who submit the landing page form
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  phone     String
+  createdAt DateTime @default(now())
+
+  @@map("users")
+}

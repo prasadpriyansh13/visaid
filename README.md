@@ -8,6 +8,8 @@ A modern, minimal web application that displays object detection data from an ex
 - **TypeScript**
 - **Tailwind CSS** (for styling)
 - **Framer Motion** (for animations)
+- **Prisma ORM** (database)
+- **PostgreSQL** (Neon - cloud database)
 
 ## Features
 
@@ -30,12 +32,18 @@ visaid/
 ├── app/
 │   ├── api/
 │   │   └── users/
-│   │       └── route.ts          # API route for saving user data
+│   │       └── route.ts          # API route for saving user data (Prisma)
 │   ├── dashboard/
 │   │   └── page.tsx              # Dashboard page with polling logic
 │   ├── globals.css               # Global styles with Tailwind
 │   ├── layout.tsx                # Root layout
 │   └── page.tsx                  # Landing page with form
+├── prisma/
+│   ├── schema.prisma             # Prisma schema (database models)
+│   └── migrations/               # Database migrations
+├── src/
+│   └── lib/
+│       └── prisma.ts              # Prisma client singleton
 ├── .env.example                  # Example environment variables
 ├── next.config.js                # Next.js configuration
 ├── tailwind.config.ts            # Tailwind CSS configuration
@@ -56,12 +64,34 @@ npm install
 Create a `.env.local` file in the root directory:
 
 ```bash
+# Database connection (Neon PostgreSQL)
+DATABASE_URL=postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require
+
+# External API URL for object detection
 NEXT_PUBLIC_API_URL=https://your-api-url.onrender.com/api/detection
 ```
 
-Replace `https://your-api-url.onrender.com/api/detection` with your actual Render API endpoint.
+**Database Setup**:
+1. Sign up at [Neon](https://neon.tech) and create a PostgreSQL database
+2. Copy your connection string from Neon dashboard
+3. Replace the `DATABASE_URL` value above
 
-### 3. Run Development Server
+**API Setup**:
+- Replace `https://your-api-url.onrender.com/api/detection` with your actual Render API endpoint
+
+### 3. Set Up Database
+
+```bash
+# Generate Prisma Client
+npx prisma generate
+
+# Create and apply database migrations
+npx prisma migrate deploy
+```
+
+For detailed database setup instructions, see [PRISMA_SETUP.md](./PRISMA_SETUP.md).
+
+### 4. Run Development Server
 
 ```bash
 npm run dev
@@ -69,7 +99,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### 4. Build for Production
+### 5. Build for Production
 
 ```bash
 npm run build
@@ -116,7 +146,7 @@ The application expects the following JSON structure from the API:
 
 ### POST `/api/users`
 
-Saves user information (name, email, phone) to the backend.
+Saves user information (name, email, phone) to PostgreSQL database via Prisma.
 
 **Request Body:**
 ```json
@@ -127,14 +157,21 @@ Saves user information (name, email, phone) to the backend.
 }
 ```
 
-**Response:**
+**Success Response (201):**
 ```json
 {
-  "message": "User data saved successfully"
+  "message": "User data saved successfully",
+  "userId": 1
 }
 ```
 
-Currently, this route logs the data to the console. In production, you would integrate with a database.
+**Error Responses:**
+- `400` - Missing or invalid fields
+- `409` - Email already exists
+- `503` - Database connection error
+- `500` - Internal server error
+
+User data is stored in PostgreSQL (Neon) and can be viewed using `npx prisma studio`.
 
 ## Animations
 
